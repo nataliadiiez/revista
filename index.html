@@ -1,0 +1,836 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ITCL — Visor Revista</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #f4f5f7;
+  --surface: #ffffff;
+  --border: #e2e5ea;
+  --text: #1a1d23;
+  --muted: #8a909c;
+  --accent: #c0392b;
+  --itcl-red: #d0021b;
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);
+  --shadow-md: 0 4px 16px rgba(0,0,0,0.10), 0 1px 4px rgba(0,0,0,0.06);
+  --shadow-lg: 0 20px 60px rgba(0,0,0,0.14), 0 4px 16px rgba(0,0,0,0.08);
+  --radius: 12px;
+}
+
+html, body {
+  height: 100%;
+  font-family: 'Nunito', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── HEADER ── */
+header {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  height: 60px;
+  background: rgba(255,255,255,0.92);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 28px;
+  z-index: 100;
+  box-shadow: var(--shadow-sm);
+}
+
+#doc-name {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--text);
+  max-width: 400px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  opacity: 0;
+  transition: opacity 0.4s;
+}
+#doc-name.visible { opacity: 1; }
+
+.itcl-logo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  text-decoration: none;
+}
+.itcl-logo-mark {
+  width: 36px;
+  height: 36px;
+}
+.itcl-logo-text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.1;
+}
+.itcl-logo-text strong {
+  font-size: 1rem;
+  font-weight: 800;
+  color: var(--itcl-red);
+  letter-spacing: 0.04em;
+}
+.itcl-logo-text span {
+  font-size: 0.55rem;
+  font-weight: 500;
+  color: var(--muted);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* ── MAIN ── */
+main {
+  min-height: 100vh;
+  padding-top: 60px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* ── UPLOAD ── */
+#upload-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: calc(100vh - 60px);
+  padding: 40px 20px;
+  gap: 20px;
+}
+
+.upload-card {
+  background: var(--surface);
+  border: 2px dashed var(--border);
+  border-radius: 20px;
+  padding: 64px 56px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.25s cubic-bezier(0.34,1.56,0.64,1);
+  max-width: 480px;
+  width: 100%;
+  position: relative;
+  box-shadow: var(--shadow-sm);
+}
+.upload-card:hover, .upload-card.drag-over {
+  border-color: var(--itcl-red);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+.upload-card input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+  font-size: 0;
+}
+.upload-icon-wrap {
+  width: 72px; height: 72px;
+  background: #fff0f0;
+  border-radius: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 20px;
+  font-size: 2rem;
+}
+.upload-card h2 {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 8px;
+}
+.upload-card p {
+  font-size: 0.88rem;
+  color: var(--muted);
+  line-height: 1.6;
+  font-weight: 400;
+}
+.upload-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 24px;
+  padding: 11px 24px;
+  background: var(--itcl-red);
+  color: white;
+  border-radius: 50px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  transition: all 0.2s;
+  box-shadow: 0 4px 12px rgba(208,2,27,0.28);
+}
+.upload-cta:hover { filter: brightness(1.1); transform: translateY(-1px); }
+
+/* ── LOADING ── */
+#loading-section {
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: calc(100vh - 60px);
+  gap: 20px;
+}
+.loader-ring {
+  width: 52px; height: 52px;
+  border: 3px solid var(--border);
+  border-top-color: var(--itcl-red);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+#load-pct {
+  font-size: 2rem;
+  font-weight: 800;
+  color: var(--text);
+}
+#load-label {
+  font-size: 0.85rem;
+  color: var(--muted);
+  font-weight: 500;
+}
+.load-bar-track {
+  width: 220px;
+  height: 4px;
+  background: var(--border);
+  border-radius: 2px;
+  overflow: hidden;
+  margin-top: 4px;
+}
+#load-bar-fill {
+  height: 100%;
+  background: var(--itcl-red);
+  border-radius: 2px;
+  width: 0%;
+  transition: width 0.3s ease;
+}
+
+/* ── VIEWER ── */
+#viewer-section {
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  padding: 24px 20px 32px;
+  gap: 20px;
+}
+
+/* Book stage */
+#book-stage {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  width: 100%;
+}
+
+.nav-arrow {
+  width: 44px; height: 44px;
+  border-radius: 50%;
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.34,1.56,0.64,1);
+  flex-shrink: 0;
+  box-shadow: var(--shadow-sm);
+  color: var(--text);
+  font-size: 1.1rem;
+  user-select: none;
+}
+.nav-arrow:hover:not(:disabled) {
+  background: var(--itcl-red);
+  border-color: var(--itcl-red);
+  color: white;
+  transform: scale(1.1);
+  box-shadow: 0 4px 14px rgba(208,2,27,0.3);
+}
+.nav-arrow:disabled { opacity: 0.3; cursor: default; pointer-events: none; }
+
+/* The flipbook container */
+#flipbook-container {
+  border-radius: 4px;
+  box-shadow: var(--shadow-lg);
+  overflow: visible;
+  position: relative;
+}
+/* StPageFlip injects its own canvas/div here */
+
+/* ── BOTTOM BAR ── */
+#bottom-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  max-width: 700px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 50px;
+  padding: 8px 20px;
+  box-shadow: var(--shadow-sm);
+  gap: 12px;
+}
+
+.bar-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.bar-btn {
+  width: 36px; height: 36px;
+  border-radius: 50%;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted);
+  font-size: 1rem;
+  transition: all 0.18s;
+}
+.bar-btn:hover { background: var(--bg); color: var(--text); }
+.bar-btn:disabled { opacity: 0.3; pointer-events: none; }
+
+#page-indicator {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--muted);
+  min-width: 80px;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.divider { width: 1px; height: 20px; background: var(--border); }
+
+/* Download button */
+#download-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 18px;
+  background: var(--text);
+  color: white;
+  border: none;
+  border-radius: 50px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-family: 'Nunito', sans-serif;
+  white-space: nowrap;
+}
+#download-btn:hover { background: var(--itcl-red); transform: translateY(-1px); }
+
+/* ── PROGRESS ── */
+#read-progress {
+  width: 100%;
+  max-width: 700px;
+  height: 3px;
+  background: var(--border);
+  border-radius: 2px;
+  overflow: hidden;
+}
+#read-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--itcl-red), #ff6b6b);
+  border-radius: 2px;
+  width: 0%;
+  transition: width 0.5s cubic-bezier(0.4,0,0.2,1);
+}
+
+/* ── THUMBNAILS ── */
+#thumb-row {
+  display: none;
+  gap: 6px;
+  overflow-x: auto;
+  max-width: 700px;
+  width: 100%;
+  padding: 6px 2px 10px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+.thumb-item {
+  flex-shrink: 0;
+  width: 52px;
+  border-radius: 6px;
+  overflow: hidden;
+  cursor: pointer;
+  border: 2px solid transparent;
+  opacity: 0.55;
+  transition: all 0.18s;
+  box-shadow: var(--shadow-sm);
+}
+.thumb-item:hover { opacity: 0.85; transform: translateY(-2px); }
+.thumb-item.active { border-color: var(--itcl-red); opacity: 1; }
+.thumb-item canvas { width: 100% !important; height: auto !important; display: block; }
+
+/* ── RESET ── */
+#reset-btn {
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-size: 0.78rem;
+  cursor: pointer;
+  font-family: 'Nunito', sans-serif;
+  font-weight: 500;
+  transition: color 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+#reset-btn:hover { color: var(--text); }
+
+/* ── RESPONSIVE ── */
+@media (max-width: 600px) {
+  header { padding: 0 16px; }
+  .itcl-logo-text span { display: none; }
+  #bottom-bar { padding: 6px 12px; }
+  #download-btn span { display: none; }
+}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header>
+  <div id="doc-name">—</div>
+  <a class="itcl-logo" href="https://itcl.es" target="_blank" rel="noopener">
+    <!-- ITCL Logo SVG inline -->
+    <svg class="itcl-logo-mark" viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg">
+      <rect width="80" height="80" rx="12" fill="#d0021b"/>
+      <text x="50%" y="54%" dominant-baseline="middle" text-anchor="middle"
+        font-family="'Nunito',sans-serif" font-weight="900" font-size="28"
+        fill="white" letter-spacing="1">ITCL</text>
+    </svg>
+    <div class="itcl-logo-text">
+      <strong>ITCL</strong>
+      <span>Centro Tecnológico</span>
+    </div>
+  </a>
+</header>
+
+<main>
+
+  <!-- UPLOAD -->
+  <div id="upload-section">
+    <div class="upload-card" id="upload-zone">
+      <input type="file" accept=".pdf" id="file-input">
+      <div class="upload-icon-wrap">📄</div>
+      <h2>Sube tu documento PDF</h2>
+      <p>Arrastra y suelta tu PDF aquí o haz clic para seleccionarlo.<br>Se visualizará como una revista interactiva.</p>
+      <div class="upload-cta">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        Seleccionar PDF
+      </div>
+    </div>
+  </div>
+
+  <!-- LOADING -->
+  <div id="loading-section">
+    <div class="loader-ring"></div>
+    <div id="load-pct">0%</div>
+    <div id="load-label">Preparando las páginas…</div>
+    <div class="load-bar-track"><div id="load-bar-fill"></div></div>
+  </div>
+
+  <!-- VIEWER -->
+  <div id="viewer-section">
+
+    <div id="book-stage">
+      <button class="nav-arrow" id="btn-prev" disabled title="Página anterior">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="15 18 9 12 15 6"/></svg>
+      </button>
+      <div id="flipbook-container"></div>
+      <button class="nav-arrow" id="btn-next" disabled title="Página siguiente">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="9 18 15 12 9 6"/></svg>
+      </button>
+    </div>
+
+    <div id="read-progress"><div id="read-fill"></div></div>
+
+    <div id="bottom-bar">
+      <div class="bar-group">
+        <button class="bar-btn" id="btn-first" title="Primera página">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="11 17 6 12 11 7"/><polyline points="18 17 13 12 18 7"/></svg>
+        </button>
+        <button class="bar-btn" id="btn-prev2" title="Anterior">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+        </button>
+      </div>
+
+      <div class="bar-group">
+        <div id="page-indicator">— / —</div>
+      </div>
+
+      <div class="bar-group">
+        <button class="bar-btn" id="btn-next2" title="Siguiente">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+        </button>
+        <button class="bar-btn" id="btn-last" title="Última página">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="13 17 18 12 13 7"/><polyline points="6 17 11 12 6 7"/></svg>
+        </button>
+      </div>
+
+      <div class="divider"></div>
+
+      <button id="download-btn" title="Descargar PDF">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        <span>Descargar</span>
+      </button>
+
+      <button id="reset-btn" title="Cargar otro PDF">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.63"/></svg>
+        Nuevo
+      </button>
+    </div>
+
+    <div id="thumb-row"></div>
+
+  </div>
+</main>
+
+<script>
+// ── PDF.js setup ──
+pdfjsLib.GlobalWorkerOptions.workerSrc =
+  'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+// ── State ──
+let pdfDoc = null, pdfBytes = null;
+let pages = [], thumbCanvases = [];
+let pageCount = 0;
+let currentPage = 0; // 0-indexed; 0 = cover
+let pageW = 0, pageH = 0;
+let isFlipping = false;
+let fileName = '';
+
+// ── Audio: page-turn sound via Web Audio API ──
+const AudioCtx = window.AudioContext || window.webkitAudioContext;
+let audioCtx = null;
+
+function playPageTurn() {
+  try {
+    if (!audioCtx) audioCtx = new AudioCtx();
+    const ctx = audioCtx;
+    const now = ctx.currentTime;
+    // White noise burst shaped like a paper rustle
+    const bufferSize = ctx.sampleRate * 0.12;
+    const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+
+    const src = ctx.createBufferSource();
+    src.buffer = buffer;
+
+    // Band-pass to make it sound papery (2–6 kHz)
+    const bp = ctx.createBiquadFilter();
+    bp.type = 'bandpass';
+    bp.frequency.value = 3500;
+    bp.Q.value = 0.7;
+
+    // Gain envelope: quick attack, fast decay
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(0, now);
+    gain.gain.linearRampToValueAtTime(0.22, now + 0.012);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.14);
+
+    src.connect(bp);
+    bp.connect(gain);
+    gain.connect(ctx.destination);
+    src.start(now);
+    src.stop(now + 0.15);
+  } catch(e) {}
+}
+
+// ── DOM refs ──
+const uploadZone    = document.getElementById('upload-zone');
+const fileInput     = document.getElementById('file-input');
+const uploadSection = document.getElementById('upload-section');
+const loadSection   = document.getElementById('loading-section');
+const viewerSection = document.getElementById('viewer-section');
+const loadPct       = document.getElementById('load-pct');
+const loadBarFill   = document.getElementById('load-bar-fill');
+const flipContainer = document.getElementById('flipbook-container');
+const thumbRow      = document.getElementById('thumb-row');
+const pageIndicator = document.getElementById('page-indicator');
+const readFill      = document.getElementById('read-fill');
+const docName       = document.getElementById('doc-name');
+const downloadBtn   = document.getElementById('download-btn');
+
+// ── Drag & drop ──
+uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('drag-over'); });
+uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('drag-over'));
+uploadZone.addEventListener('drop', e => {
+  e.preventDefault(); uploadZone.classList.remove('drag-over');
+  if (e.dataTransfer.files[0]) loadPDF(e.dataTransfer.files[0]);
+});
+fileInput.addEventListener('change', () => { if (fileInput.files[0]) loadPDF(fileInput.files[0]); });
+
+// ── Load & render PDF ──
+async function loadPDF(file) {
+  fileName = file.name;
+  pdfBytes = await file.arrayBuffer();
+
+  uploadSection.style.display = 'none';
+  loadSection.style.display = 'flex';
+  pages = []; thumbCanvases = [];
+  thumbRow.innerHTML = '';
+  flipContainer.innerHTML = '';
+
+  const typedArray = new Uint8Array(pdfBytes);
+  pdfDoc = await pdfjsLib.getDocument({ data: typedArray }).promise;
+  pageCount = pdfDoc.numPages;
+
+  // Compute scale from first page
+  const p0 = await pdfDoc.getPage(1);
+  const vp0 = p0.getViewport({ scale: 1 });
+  const maxH = Math.min(window.innerHeight * 0.72, 700);
+  const scale = maxH / vp0.height;
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  pageW = Math.round(vp0.width  * scale);
+  pageH = Math.round(vp0.height * scale);
+
+  for (let i = 1; i <= pageCount; i++) {
+    const pct = Math.round(i / pageCount * 100);
+    loadPct.textContent = pct + '%';
+    loadBarFill.style.width = pct + '%';
+
+    const pg = await pdfDoc.getPage(i);
+
+    // Hi-res canvas
+    const c = document.createElement('canvas');
+    const vp = pg.getViewport({ scale: scale * dpr });
+    c.width = vp.width; c.height = vp.height;
+    c.style.width  = pageW + 'px';
+    c.style.height = pageH + 'px';
+    await pg.render({ canvasContext: c.getContext('2d'), viewport: vp }).promise;
+    pages.push(c);
+
+    // Thumb
+    const tc = document.createElement('canvas');
+    const tvp = pg.getViewport({ scale: 0.1 * dpr });
+    tc.width = tvp.width; tc.height = tvp.height;
+    tc.style.width = Math.round(vp0.width * 0.1) + 'px';
+    await pg.render({ canvasContext: tc.getContext('2d'), viewport: tvp }).promise;
+    thumbCanvases.push(tc);
+
+    const tw = document.createElement('div');
+    tw.className = 'thumb-item';
+    tw.dataset.idx = i - 1;
+    tw.appendChild(tc.cloneNode(true));
+    tw.addEventListener('click', () => jumpTo(parseInt(tw.dataset.idx)));
+    thumbRow.appendChild(tw);
+  }
+
+  // Show viewer
+  loadSection.style.display = 'none';
+  viewerSection.style.display = 'flex';
+  thumbRow.style.display = 'flex';
+  docName.textContent = fileName.replace('.pdf','');
+  docName.classList.add('visible');
+
+  buildFlipbook();
+}
+
+// ── Build flipbook with manual flip ──
+let leftCanvas = null, rightCanvas = null;
+let spineEl = null;
+
+function buildFlipbook() {
+  // Create the two-page spread manually
+  flipContainer.innerHTML = '';
+  flipContainer.style.display = 'flex';
+  flipContainer.style.alignItems = 'center';
+  flipContainer.style.position = 'relative';
+  flipContainer.style.borderRadius = '4px';
+  flipContainer.style.overflow = 'hidden';
+  flipContainer.style.boxShadow = '0 20px 60px rgba(0,0,0,0.18), 0 4px 16px rgba(0,0,0,0.10)';
+
+  leftCanvas = document.createElement('div');
+  leftCanvas.id = 'page-left';
+  leftCanvas.style.cssText = `width:${pageW}px;height:${pageH}px;overflow:hidden;position:relative;background:#fff;`;
+
+  spineEl = document.createElement('div');
+  spineEl.style.cssText = `width:6px;height:${pageH}px;flex-shrink:0;background:linear-gradient(90deg,#ccc,#e8e8e8,#ccc);box-shadow:0 0 8px rgba(0,0,0,0.15);`;
+
+  rightCanvas = document.createElement('div');
+  rightCanvas.id = 'page-right';
+  rightCanvas.style.cssText = `width:${pageW}px;height:${pageH}px;overflow:hidden;position:relative;background:#fff;`;
+
+  flipContainer.appendChild(leftCanvas);
+  flipContainer.appendChild(spineEl);
+  flipContainer.appendChild(rightCanvas);
+
+  currentPage = 0;
+  renderSpread(currentPage, null);
+}
+
+// spread: 0 = cover (right only), 1 = pages 1+2, 2 = pages 3+4, …
+function spreadToPages(s) {
+  if (s === 0) return [null, 0];
+  const l = s * 2 - 1, r = s * 2;
+  return [l < pageCount ? l : null, r < pageCount ? r : null];
+}
+
+function totalSpreads() { return Math.ceil((pageCount - 1) / 2) + 1; }
+
+function renderSpread(s, direction) {
+  const [li, ri] = spreadToPages(s);
+
+  if (direction) {
+    playPageTurn();
+    const el = direction === 'next' ? rightCanvas : leftCanvas;
+    el.style.transition = 'none';
+    el.style.opacity = '0.4';
+    el.style.transform = direction === 'next' ? 'perspective(1000px) rotateY(-12deg) scaleX(0.92)' : 'perspective(1000px) rotateY(12deg) scaleX(0.92)';
+    setTimeout(() => {
+      el.style.transition = 'opacity 0.35s ease, transform 0.35s cubic-bezier(0.4,0,0.2,1)';
+      el.style.opacity = '1';
+      el.style.transform = '';
+    }, 20);
+  }
+
+  // Left page
+  leftCanvas.innerHTML = '';
+  if (li !== null) {
+    leftCanvas.style.visibility = 'visible';
+    const c = pages[li].cloneNode(true);
+    c.style.width = pageW + 'px'; c.style.height = pageH + 'px';
+    leftCanvas.appendChild(c);
+  } else {
+    leftCanvas.style.visibility = 'hidden';
+  }
+
+  // Right page
+  rightCanvas.innerHTML = '';
+  if (ri !== null) {
+    rightCanvas.style.visibility = 'visible';
+    const c = pages[ri].cloneNode(true);
+    c.style.width = pageW + 'px'; c.style.height = pageH + 'px';
+    rightCanvas.appendChild(c);
+  } else {
+    rightCanvas.style.visibility = 'hidden';
+  }
+
+  updateUI(s);
+}
+
+function updateUI(s) {
+  const ts = totalSpreads();
+  const [li, ri] = spreadToPages(s);
+  const ln = li !== null ? li + 1 : null;
+  const rn = ri !== null ? ri + 1 : null;
+  if (ln && rn) pageIndicator.textContent = `${ln} – ${rn} / ${pageCount}`;
+  else if (rn) pageIndicator.textContent = `${rn} / ${pageCount}`;
+  else if (ln) pageIndicator.textContent = `${ln} / ${pageCount}`;
+
+  readFill.style.width = ((s + 1) / ts * 100) + '%';
+
+  const atStart = s === 0;
+  const atEnd   = s >= ts - 1;
+  ['btn-prev','btn-prev2','btn-first'].forEach(id => {
+    const b = document.getElementById(id);
+    if (b) b.disabled = atStart;
+  });
+  ['btn-next','btn-next2','btn-last'].forEach(id => {
+    const b = document.getElementById(id);
+    if (b) b.disabled = atEnd;
+  });
+
+  // Active thumb
+  document.querySelectorAll('.thumb-item').forEach(t => t.classList.remove('active'));
+  const ai = ri !== null ? ri : (li !== null ? li : 0);
+  const at = document.querySelector(`.thumb-item[data-idx="${ai}"]`);
+  if (at) { at.classList.add('active'); at.scrollIntoView({ behavior:'smooth', inline:'center', block:'nearest' }); }
+}
+
+function next() {
+  if (isFlipping || currentPage >= totalSpreads() - 1) return;
+  isFlipping = true;
+  currentPage++;
+  renderSpread(currentPage, 'next');
+  setTimeout(() => isFlipping = false, 400);
+}
+
+function prev() {
+  if (isFlipping || currentPage === 0) return;
+  isFlipping = true;
+  currentPage--;
+  renderSpread(currentPage, 'prev');
+  setTimeout(() => isFlipping = false, 400);
+}
+
+function jumpTo(pageIdx) {
+  let s = pageIdx === 0 ? 0 : Math.ceil((pageIdx) / 2);
+  s = Math.max(0, Math.min(s, totalSpreads() - 1));
+  if (s !== currentPage) {
+    const dir = s > currentPage ? 'next' : 'prev';
+    currentPage = s;
+    renderSpread(currentPage, dir);
+  }
+}
+
+// ── Navigation buttons ──
+document.getElementById('btn-prev').addEventListener('click', prev);
+document.getElementById('btn-next').addEventListener('click', next);
+document.getElementById('btn-prev2').addEventListener('click', prev);
+document.getElementById('btn-next2').addEventListener('click', next);
+document.getElementById('btn-first').addEventListener('click', () => { if(currentPage>0){currentPage=0;renderSpread(0,'prev');} });
+document.getElementById('btn-last').addEventListener('click', () => { const t=totalSpreads()-1; if(currentPage<t){currentPage=t;renderSpread(t,'next');} });
+
+// ── Keyboard ──
+document.addEventListener('keydown', e => {
+  if (e.key === 'ArrowRight' || e.key === 'ArrowDown') next();
+  if (e.key === 'ArrowLeft'  || e.key === 'ArrowUp')   prev();
+});
+
+// ── Touch swipe ──
+let tx = 0;
+document.addEventListener('touchstart', e => { tx = e.touches[0].clientX; }, { passive: true });
+document.addEventListener('touchend', e => {
+  const dx = e.changedTouches[0].clientX - tx;
+  if (dx < -50) next();
+  if (dx >  50) prev();
+});
+
+// ── Download ──
+downloadBtn.addEventListener('click', () => {
+  if (!pdfBytes) return;
+  const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href = url; a.download = fileName || 'documento.pdf';
+  a.click();
+  URL.revokeObjectURL(url);
+});
+
+// ── Reset ──
+document.getElementById('reset-btn').addEventListener('click', () => {
+  viewerSection.style.display = 'none';
+  thumbRow.style.display = 'none';
+  thumbRow.innerHTML = '';
+  flipContainer.innerHTML = '';
+  docName.classList.remove('visible');
+  fileInput.value = '';
+  pdfBytes = null; pdfDoc = null; pages = [];
+  uploadSection.style.display = 'flex';
+});
+</script>
+</body>
+</html>
